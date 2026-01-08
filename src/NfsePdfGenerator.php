@@ -228,9 +228,9 @@ class NfsePdfGenerator
         $qrUrl = 'https://www.nfse.gov.br/ConsultaPublica?tpc=1&chave=' . $this->data['chaveAcesso'];
         $qrSize = 18; // QR code size
         // Center the QR code horizontally in the 4th column
-        $qrX = $col4X + ($col4W - $qrSize) / 2;
+        $qrX = $col4X + ($col4W - $qrSize) / 1.5;
         // Position QR code higher above row1Y to avoid overlapping with text
-        $qrY = $row1Y - 6;
+        $qrY = $row1Y - 10;
 
         $style = array(
             'border' => 0,
@@ -290,9 +290,9 @@ class NfsePdfGenerator
 
         // Authenticity message positioned in 4th column, below QR code
         $this->pdf->SetXY($col4X, $row4Y);
-        $this->pdf->SetFont('helvetica', '', 6);
+        $this->pdf->SetFont('helvetica', '', 5);
         $message = 'A autenticidade desta NFS-e pode ser verificada pela leitura deste código QR ou pela consulta da chave de acesso no portal nacional da NFS-e';
-        $this->pdf->MultiCell($col4W - 2, 2.5, $message, 0, 'L', false, 1, $col4X, $row4Y);
+        $this->pdf->MultiCell($col4W - 1, 1, $message, 0, 'L', false, 1, $col4X+5, $row4Y-4);
         $messageEndY = $this->pdf->GetY();
 
         // Move Y position after QR code area (use the maximum of message end or QR code end)
@@ -311,18 +311,14 @@ class NfsePdfGenerator
         $col3W = 50;
         $col4W = 45;
 
-        $this->pdf->SetFont('helvetica', 'B', 7);
-        $this->pdf->Cell(0, 4, 'EMITENTE DA NFS-e', 0, 1, 'L');
-        $this->pdf->SetFont('helvetica', '', 8);
-
         $emit = $this->data['emitente'];
         $startY = $this->pdf->GetY();
 
         // Header row
-        $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($col1W, 4, 'Prestador do Serviço', 0, 0, 'L');
-        $this->pdf->SetXY($col2X, $startY);
         $this->pdf->SetFont('helvetica', 'B', 7);
+        $this->pdf->SetXY($col1X, $startY);
+        $this->pdf->Cell($col1W, 4, 'EMITENTE DA NFS-e', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $startY);
         $this->pdf->Cell($col2W, 4, 'CNPJ / CPF / NIF', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY);
         $this->pdf->Cell($col3W, 4, 'Inscrição Municipal', 0, 0, 'L');
@@ -332,7 +328,7 @@ class NfsePdfGenerator
         // Data row
         $this->pdf->SetFont('helvetica', '', 8);
         $this->pdf->SetXY($col1X, $startY + 4);
-        $this->pdf->Cell($col1W, 4, '', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'Prestador do Serviço', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY + 4);
         $this->pdf->Cell($col2W, 4, $emit['cnpj'], 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY + 4);
@@ -410,18 +406,14 @@ class NfsePdfGenerator
         $col3W = 50;
         $col4W = 45;
 
-        $this->pdf->SetFont('helvetica', 'B', 7);
-        $this->pdf->Cell(0, 4, 'TOMADOR DO SERVIÇO', 0, 1, 'L');
-        $this->pdf->SetFont('helvetica', '', 8);
-
         $toma = $this->data['tomador'];
         $startY = $this->pdf->GetY();
 
         // Header row
-        $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($col1W, 4, '', 0, 0, 'L');
-        $this->pdf->SetXY($col2X, $startY);
         $this->pdf->SetFont('helvetica', 'B', 7);
+        $this->pdf->SetXY($col1X, $startY);
+        $this->pdf->Cell($col1W, 4, 'TOMADOR DO SERVIÇO', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $startY);
         $this->pdf->Cell($col2W, 4, 'CNPJ / CPF / NIF', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY);
         $this->pdf->Cell($col3W, 4, 'Inscrição Municipal', 0, 0, 'L');
