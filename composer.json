@@ -1,0 +1,15 @@
+{
+    "name": "nfse/pdf-generator",
+    "description": "NFS-e PDF Generator from XML",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "tecnickcom/tcpdf": "^6.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "NfsePdf\\": "src/"
+        }
+    }
+}
+
