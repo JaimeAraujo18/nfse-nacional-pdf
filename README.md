@@ -24,7 +24,7 @@ oficial.
 $title = 'NFSe-00123456789.pdf';
 $xml_path = 'path-to-nfse-xml-file.xml';
 
-if (!file_exists($xml_dir)) {
+if (!file_exists($xml_path)) {
     die("Arquivo XML da NFS-e não encontrado para geração do DANFSe.");
 }
 
