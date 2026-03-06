@@ -832,11 +832,11 @@ class NfsePdfGenerator {
         $row6Y = $this->pdf->GetY();
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $row6Y);
-        $this->pdf->Cell($col1W, 4, 'PIS', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'PIS - Débito apuração própria', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row6Y);
-        $this->pdf->Cell($col2W, 4, 'COFINS', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, 'COFINS - Débito apuração própria', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row6Y);
-        $this->pdf->Cell($col3W, 4, 'Retenção do PIS/COFINS', 0, 0, 'L');
+        $this->pdf->Cell($col3W, 4, 'Descrição Contrib. Sociais - Retidas', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row6Y);
         $this->pdf->Cell($col4W, 4, 'TOTAL TRIBUTAÇÃO FEDERAL', 0, 1, 'L');
 
@@ -896,9 +896,9 @@ class NfsePdfGenerator {
         $row2Y = $this->pdf->GetY();
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $row2Y);
-        $this->pdf->Cell($col1W, 4, 'IRRF, CP, CSLL - Retidos', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'Total das Retenções Federais', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y);
-        $this->pdf->Cell($col2W, 4, 'PIS/COFINS Retidos', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, 'PIS/COFINS - Débito Apur. Própria', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row2Y);
         $this->pdf->Cell($col3W, 4, '', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row2Y);
@@ -1283,21 +1283,39 @@ class NfsePdfGenerator {
     private function retencaoPisCofins($cTpRetPisCofins): string {
         // NFSe/infNFSe/DPS/infDPS/valores/trib/tribFed/piscofins/tpRetPisCofins
         // Tipo de retenção ao do PIS/COFINS:
-        // 1 - PIS/COFINS Retido;
-        // 2 - PIS/COFINS Não Retido;
-        // 3 - PIS Retido/COFINS Não Retido;
-        // 4 - PIS Não Retido/COFINS Retido;
+        // 0 - PIS/COFINS/CSLL Não Retidos
+        // 1 - PIS/COFINS Retido
+        // 2 - PIS/COFINS Não Retido
+        // 3 - PIS/COFINS/CSLL Retidos
+        // 4 - PIS/COFINS Retidos, CSLL Não Retido
+        // 5 - PIS Retido, COFINS/CSLL Não Retido
+        // 6 - COFINS Retido, PIS/CSLL Não Retido
+        // 7 - PIS Não Retido, COFINS/CSLL Retidos
+        // 8 - PIS/COFINS Não Retidos, CSLL Retido
+        // 9 - COFINS Não Retido, PIS/CSLL Retidos
 
         $tpRetPisCofins = '-';
         if (is_numeric($cTpRetPisCofins)) {
-            if ($cTpRetPisCofins == 1) {
-                $tpRetPisCofins = 'Retido';
+            if ($cTpRetPisCofins == 0) {
+                $tpRetPisCofins = 'PIS/COFINS/CSLL Não Retidos';
+            } elseif ($cTpRetPisCofins == 1) {
+                $tpRetPisCofins = 'PIS/COFINS Retido';
             } elseif ($cTpRetPisCofins == 2) {
-                $tpRetPisCofins = 'Não Retido';
+                $tpRetPisCofins = 'PIS/COFINS Não Retido';
             } elseif ($cTpRetPisCofins == 3) {
-                $tpRetPisCofins = 'PIS Retido/COFINS Não Retido';
+                $tpRetPisCofins = 'PIS/COFINS/CSLL Retidos';
             } elseif ($cTpRetPisCofins == 4) {
-                $tpRetPisCofins = 'PIS Não Retido/COFINS Retido';
+                $tpRetPisCofins = 'PIS/COFINS Retidos, CSLL Não Retido';
+            } elseif ($cTpRetPisCofins == 5) {
+                $tpRetPisCofins = 'PIS Retido, COFINS/CSLL Não Retido';
+            } elseif ($cTpRetPisCofins == 6) {
+                $tpRetPisCofins = 'COFINS Retido, PIS/CSLL Não Retido';
+            } elseif ($cTpRetPisCofins == 7) {
+                $tpRetPisCofins = 'PIS Não Retido, COFINS/CSLL Retidos';
+            } elseif ($cTpRetPisCofins == 8) {
+                $tpRetPisCofins = 'PIS/COFINS Não Retidos, CSLL Retido';
+            } elseif ($cTpRetPisCofins == 9) {
+                $tpRetPisCofins = 'COFINS Não Retido, PIS/CSLL Retidos';
             }
         }
 
