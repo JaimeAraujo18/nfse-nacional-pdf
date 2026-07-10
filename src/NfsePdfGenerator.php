@@ -9,6 +9,8 @@ class NfsePdfGenerator {
     private $data;
     private $margin = 5;
     private $font = 'helvetica';
+    private $cancelada = false;
+    private $substituida = false;
     private $municipality = [
         'department' => null,
         'phone' => null,
@@ -29,7 +31,7 @@ class NfsePdfGenerator {
 
         $this->pdf->SetMargins($this->margin, $this->margin, $this->margin);
         $this->pdf->SetAutoPageBreak(true, $this->margin);
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
     }
 
     public function setTitle(string $title) {
@@ -51,6 +53,18 @@ class NfsePdfGenerator {
         return $this;
     }
 
+    public function setCancelada(bool $cancelada) {
+        $this->cancelada = $cancelada;
+
+        return $this;
+    }
+
+    public function setSubstituida(bool $substituida) {
+        $this->substituida = $substituida;
+
+        return $this;
+    }
+
     public function getTomadorCidadeIBGE(): int {
         return (int) $this->data['tomador']['ibgeMunicipio'];
     }
@@ -58,6 +72,47 @@ class NfsePdfGenerator {
     public function setTomadorCidadeUF(string $cidade, string $uf) {
         $this->data['tomador']['municipio'] = $cidade;
         $this->data['tomador']['uf'] = $uf;
+    }
+
+    public function getLocalPrestacaoIbge(): int {
+        return (int) $this->data['localPrestacaoIbge'];
+    }
+
+    public function setLocalPrestacaoUF(string $uf) {
+        $this->data['localPrestacaoUf'] = $uf;
+
+        return $this;
+    }
+
+    public function getLocalIncidenciaIbge(): int {
+        return (int) $this->data['localIncidenciaIbge'];
+    }
+
+    public function setLocalIncidenciaUF(string $uf) {
+        $this->data['localIncidenciaUf'] = $uf;
+
+        return $this;
+    }
+
+    public function getDestinatarioIbge(): int {
+        return (int) $this->data['destinatario']['ibgeMunicipio'];
+    }
+
+    public function setDestinatarioUF(string $cidade, string $uf) {
+        $this->data['destinatario']['municipio'] = $cidade;
+        $this->data['destinatario']['uf'] = $uf;
+
+        return $this;
+    }
+
+    public function getIbsCbsLocalidadeIncidIbge(): int {
+        return (int) $this->data['ibsCbs']['localidadeIncidIbge'];
+    }
+
+    public function setIbsCbsLocalidadeIncidUF(string $uf) {
+        $this->data['ibsCbs']['localidadeIncidUf'] = $uf;
+
+        return $this;
     }
 
     public function parseXml(string $xmlFile) {
@@ -83,10 +138,19 @@ class NfsePdfGenerator {
             'numeroNfse' => (string) $infNFSe->nNFSe,
             'localEmissao' => (string) $infNFSe->xLocEmi,
             'localPrestacao' => (string) $infNFSe->xLocPrestacao,
+            'localPrestacaoIbge' => (string) $dps->serv->locPrest->cLocPrestacao,
+            'localPrestacaoPais' => (string) $dps->serv->locPrest->cPaisPrestacao,
             'localIncidencia' => (string) $infNFSe->xLocIncid,
+            'localIncidenciaIbge' => (string) $infNFSe->cLocIncid,
+            'localIncidenciaPais' => (string) $dps->valores->trib->tribMun->cPaisResult,
             'tribNac' => (string) $infNFSe->xTribNac,
             'dataProcessamento' => $this->formatDateTime((string) $infNFSe->dhProc),
             'numeroDFSe' => (string) $infNFSe->nDFSe,
+            'tpEmit' => (string) $dps->tpEmit,
+            'cStat' => (string) $infNFSe->cStat,
+            'ambGer' => (string) $infNFSe->ambGer,
+            'tpAmb' => (string) $dps->tpAmb,
+            'xOutInf' => (string) $infNFSe->xOutInf,
             'emitente' => [
                 'cnpj' => $this->formatCnpjCpf((string) $infNFSe->emit->CNPJ),
                 'inscricaoMunicipal' => ((string) $infNFSe->emit->IM) ?: '-',
@@ -95,6 +159,7 @@ class NfsePdfGenerator {
                 'fone' => $this->formatPhone((string) $infNFSe->emit->fone),
                 'logradouro' => (string) $infNFSe->emit->enderNac->xLgr,
                 'numero' => (string) $infNFSe->emit->enderNac->nro,
+                'complemento' => (string) $infNFSe->emit->enderNac->xCpl,
                 'bairro' => (string) $infNFSe->emit->enderNac->xBairro,
                 'municipio' => (string) $infNFSe->emit->enderNac->cMun,
                 'uf' => (string) $infNFSe->emit->enderNac->UF,
@@ -118,13 +183,16 @@ class NfsePdfGenerator {
             'servico' => [
                 'codTribNac' => (string) $dps->serv->cServ->cTribNac,
                 'codTribMun' => ((string) $dps->serv->cServ->cTribMun) ?: '-',
+                'descTribMun' => (string) $dps->serv->cServ->xTribMun,
                 'descricao' => (string) $dps->serv->cServ->xDescServ,
                 'nbs' => (string) $dps->serv->cServ->cNBS,
+                'descNbs' => (string) $dps->serv->cServ->xNBS,
                 'infoComp' => (string) $dps->serv->infoCompl->xInfComp,
             ],
             'valores' => [
                 'servico' => (float) $dps->valores->vServPrest->vServ,
                 'descontoIncondicionado' => $dps->valores->vDescCondIncond->vDescIncond ?? '-',
+                'descontoCondicionado' => $dps->valores->vDescCondIncond->vDescCond ?? '-',
                 'totalDeducaoReducao' => $infNFSe->valores->vCalcDR ?? '-',
                 'calculoBeneficioMunicipal' => $infNFSe->valores->vCalcBM ?? '-',
                 'baseCalculoISSQN' => $infNFSe->valores->vBC ?? '-',
@@ -135,6 +203,7 @@ class NfsePdfGenerator {
                 'PIS' => $dps->valores->trib->tribFed->piscofins->vPis ?? '-',
                 'COFINS' => $dps->valores->trib->tribFed->piscofins->vCofins ?? '-',
                 'liquido' => (float) $infNFSe->valores->vLiq,
+                'totalRetencoes' => $infNFSe->valores->vTotalRet ?? '-',
                 'totalTributosFederais' => (float) $dps->valores->trib->totTrib->vTotTrib->vTotTribFed,
                 'totalTributosEstaduais' => (float) $dps->valores->trib->totTrib->vTotTrib->vTotTribEst,
                 'totalTributosMunicipais' => (float) $dps->valores->trib->totTrib->vTotTrib->vTotTribMun,
@@ -143,38 +212,46 @@ class NfsePdfGenerator {
                 'numero' => (string) $dps->nDPS,
                 'serie' => (string) $dps->serie,
                 'competencia' => $this->formatDate((string) $dps->dCompet),
+                'competenciaISO' => (string) $dps->dCompet,
                 'dataEmissao' => $this->formatDateTime((string) $dps->dhEmi),
             ],
             'tributacao' => [
+                'existeTribMun' => isset($dps->valores->trib->tribMun) && count($dps->valores->trib->tribMun) > 0,
                 'tipoTributacaoISSQN' => (string) $dps->valores->trib->tribMun->tribISSQN,
                 'regimeEspecialTributacao' => (string) $dps->prest->regTrib->regEspTrib,
                 'tipoImunidade' => (string) $dps->valores->trib->tribMun->tpImunidade ?? '-',
                 'tipoSuspensao' => (string) $dps->valores->trib->tribMun->exigSusp->tpSusp ?? '-',
                 'nProcessoSuspensao' => (string) $dps->valores->trib->tribMun->exigSusp->nProcesso ?? '-',
-                'nBeneficioMunicipal' => (string) $dps->valores->trib->tribMun->BM->nBM ?? '-',
+                'tipoBeneficioMunicipal' => (string) $infNFSe->valores->tpBM,
                 'percentualAliquotaAplicadaISSQN' => (float) $infNFSe->valores->pAliqAplic ?? '-',
                 'tipoRetencaoISSQN' => (string) $dps->valores->trib->tribMun->tpRetISSQN,
                 'tipoRetencaoPisCofins' => (string) ($dps->valores->trib->tribFed->piscofins->tpRetPisCofins ?? '-'),
             ],
+            'ibsCbs' => $this->parseIbsCbs($infNFSe, $dps),
+            'infoComplementares' => $this->parseInfoComplementares($infNFSe, $dps),
+            'destinatario' => $this->parseDestinatario($dps),
         ];
 
 
-        $data['valores']['PisCofinsRetidos'] = 0;
+        $data['tomador']['existe'] = ($data['tomador']['doc'] !== '' || $data['tomador']['nome'] !== '');
 
-        // 1 - PIS/COFINS Retido OU 3 - PIS Retido/COFINS Não Retido;
-        if (in_array($data['tributacao']['tipoRetencaoPisCofins'], [1, 3])) {
-            $data['valores']['PisCofinsRetidos'] += (float) $data['valores']['PIS'];
-        }
+        $data['ibsCbs']['valorTotalIbsCbs'] = (float) $data['ibsCbs']['valorTotalIbs'] + (float) $data['ibsCbs']['valorTotalCbs'];
 
-        // 1 - PIS/COFINS Retido OU 4 - PIS Não Retido/COFINS Retido;
-        if (in_array($data['tributacao']['tipoRetencaoPisCofins'], [1, 4])) {
-            $data['valores']['PisCofinsRetidos'] += (float) $data['valores']['COFINS'];
-        }
+        // Quando há IBS/CBS a prefeitura/SEFIN já devolve o total pronto (vTotNF); sem IBS/CBS, líquido = líquido normal
+        $data['ibsCbs']['liquidoComIbsCbs'] = !empty($data['ibsCbs']['classTrib'])
+            ? (float) $infNFSe->IBSCBS->totCIBS->vTotNF
+            : (float) $data['valores']['liquido'];
 
-        $data['valores']['IrrfCpCsllRetidos'] = (float) $data['valores']['IRRF'] + (float) $data['valores']['CP'] + (float) $data['valores']['CSLL'];
+        // Soma dos 5 componentes previstos na NT-008 (Desconto Incondicionado + IBS/CBS + ISSQN + PIS + COFINS)
+        $data['ibsCbs']['exclusoesReducoes'] = (float) $data['valores']['descontoIncondicionado']
+            + (float) $data['ibsCbs']['exclusoesReducoes']
+            + (float) $data['valores']['ISSQN']
+            + (float) $data['valores']['PIS']
+            + (float) $data['valores']['COFINS'];
 
         $data['valores']['servico'] = $this->money($data['valores']['servico']);
         $data['valores']['descontoIncondicionado'] = $this->money($data['valores']['descontoIncondicionado']);
+        $data['valores']['descontoCondicionado'] = $this->money($data['valores']['descontoCondicionado']);
         $data['valores']['totalDeducaoReducao'] = $this->money($data['valores']['totalDeducaoReducao']);
         $data['valores']['calculoBeneficioMunicipal'] = $this->money($data['valores']['calculoBeneficioMunicipal']);
         $data['valores']['baseCalculoISSQN'] = $this->money($data['valores']['baseCalculoISSQN']);
@@ -184,8 +261,7 @@ class NfsePdfGenerator {
         $data['valores']['CSLL'] = $this->money($data['valores']['CSLL']);
         $data['valores']['PIS'] = $this->money($data['valores']['PIS']);
         $data['valores']['COFINS'] = $this->money($data['valores']['COFINS']);
-        $data['valores']['IrrfCpCsllRetidos'] = $this->money($data['valores']['IrrfCpCsllRetidos']);
-        $data['valores']['PisCofinsRetidos'] = $this->money($data['valores']['PisCofinsRetidos']);
+        $data['valores']['totalRetencoes'] = $this->money($data['valores']['totalRetencoes']);
         $data['valores']['liquido'] = $this->money($data['valores']['liquido']);
         $data['valores']['totalTributosFederais'] = $this->money($data['valores']['totalTributosFederais']);
         $data['valores']['totalTributosEstaduais'] = $this->money($data['valores']['totalTributosEstaduais']);
@@ -193,9 +269,174 @@ class NfsePdfGenerator {
 
         $data['tributacao']['percentualAliquotaAplicadaISSQN'] = $this->money($data['tributacao']['percentualAliquotaAplicadaISSQN'], 2, true);
 
+        $data['ibsCbs']['exclusoesReducoes'] = $this->money($data['ibsCbs']['exclusoesReducoes']);
+        $data['ibsCbs']['baseCalculo'] = $this->money($data['ibsCbs']['baseCalculo']);
+        $data['ibsCbs']['reducaoAliqIbsUf'] = $this->money($data['ibsCbs']['reducaoAliqIbsUf'], 2, true);
+        $data['ibsCbs']['reducaoAliqIbsMun'] = $this->money($data['ibsCbs']['reducaoAliqIbsMun'], 2, true);
+        $data['ibsCbs']['reducaoAliqCbs'] = $this->money($data['ibsCbs']['reducaoAliqCbs'], 2, true);
+        $data['ibsCbs']['aliqIbsUf'] = $this->money($data['ibsCbs']['aliqIbsUf'], 2, true);
+        $data['ibsCbs']['aliqEfetIbsUf'] = $this->money($data['ibsCbs']['aliqEfetIbsUf'], 2, true);
+        $data['ibsCbs']['valorIbsUf'] = $this->money($data['ibsCbs']['valorIbsUf']);
+        $data['ibsCbs']['aliqIbsMun'] = $this->money($data['ibsCbs']['aliqIbsMun'], 2, true);
+        $data['ibsCbs']['aliqEfetIbsMun'] = $this->money($data['ibsCbs']['aliqEfetIbsMun'], 2, true);
+        $data['ibsCbs']['valorIbsMun'] = $this->money($data['ibsCbs']['valorIbsMun']);
+        $data['ibsCbs']['valorTotalIbs'] = $this->money($data['ibsCbs']['valorTotalIbs']);
+        $data['ibsCbs']['aliqCbs'] = $this->money($data['ibsCbs']['aliqCbs'], 2, true);
+        $data['ibsCbs']['aliqEfetCbs'] = $this->money($data['ibsCbs']['aliqEfetCbs'], 2, true);
+        $data['ibsCbs']['valorTotalCbs'] = $this->money($data['ibsCbs']['valorTotalCbs']);
+        $data['ibsCbs']['valorTotalIbsCbs'] = $this->money($data['ibsCbs']['valorTotalIbsCbs']);
+        $data['ibsCbs']['liquidoComIbsCbs'] = $this->money($data['ibsCbs']['liquidoComIbsCbs']);
+
         $this->data = $data;
 
         return $this;
+    }
+
+    private function parseIbsCbs($infNFSe, $dps): array {
+        $empty = [
+            'cst' => '',
+            'classTrib' => '',
+            'finNFSe' => '',
+            'cIndOp' => '',
+            'localidadeIncidIbge' => '',
+            'localidadeIncid' => '',
+            'exclusoesReducoes' => 0.0,
+            'baseCalculo' => 0.0,
+            'reducaoAliqIbsUf' => 0.0,
+            'reducaoAliqIbsMun' => 0.0,
+            'reducaoAliqCbs' => 0.0,
+            'aliqIbsUf' => 0.0,
+            'aliqEfetIbsUf' => 0.0,
+            'valorIbsUf' => 0.0,
+            'aliqIbsMun' => 0.0,
+            'aliqEfetIbsMun' => 0.0,
+            'valorIbsMun' => 0.0,
+            'valorTotalIbs' => 0.0,
+            'aliqCbs' => 0.0,
+            'aliqEfetCbs' => 0.0,
+            'valorTotalCbs' => 0.0,
+        ];
+
+        // O bloco IBSCBS só existe em DPS/NFS-e emitidas já sob a reforma tributária (IBS/CBS)
+        if (!isset($dps->IBSCBS) || count($dps->IBSCBS) === 0 || !isset($infNFSe->IBSCBS) || count($infNFSe->IBSCBS) === 0) {
+            return $empty;
+        }
+
+        return [
+            'cst' => (string) $dps->IBSCBS->valores->trib->gIBSCBS->CST,
+            'classTrib' => (string) $dps->IBSCBS->valores->trib->gIBSCBS->cClassTrib,
+            'finNFSe' => (string) $dps->IBSCBS->finNFSe,
+            'cIndOp' => (string) $dps->IBSCBS->cIndOp,
+            'localidadeIncidIbge' => (string) $infNFSe->IBSCBS->cLocalidadeIncid,
+            'localidadeIncid' => (string) $infNFSe->IBSCBS->xLocalidadeIncid,
+            'exclusoesReducoes' => (float) $infNFSe->IBSCBS->valores->vCalcReeRepRes,
+            'baseCalculo' => (float) $infNFSe->IBSCBS->valores->vBC,
+            'reducaoAliqIbsUf' => (float) $infNFSe->IBSCBS->valores->uf->pRedAliqUF,
+            'reducaoAliqIbsMun' => (float) $infNFSe->IBSCBS->valores->mun->pRedAliqMun,
+            'reducaoAliqCbs' => (float) $infNFSe->IBSCBS->valores->fed->pRedAliqCBS,
+            'aliqIbsUf' => (float) $infNFSe->IBSCBS->valores->uf->pIBSUF,
+            'aliqEfetIbsUf' => (float) $infNFSe->IBSCBS->valores->uf->pAliqEfetUF,
+            'valorIbsUf' => (float) $infNFSe->IBSCBS->totCIBS->gIBS->gIBSUFTot->vIBSUF,
+            'aliqIbsMun' => (float) $infNFSe->IBSCBS->valores->mun->pIBSMun,
+            'aliqEfetIbsMun' => (float) $infNFSe->IBSCBS->valores->mun->pAliqEfetMun,
+            'valorIbsMun' => (float) $infNFSe->IBSCBS->totCIBS->gIBS->gIBSMunTot->vIBSMun,
+            'valorTotalIbs' => (float) $infNFSe->IBSCBS->totCIBS->gIBS->vIBSTot,
+            'aliqCbs' => (float) $infNFSe->IBSCBS->valores->fed->pCBS,
+            'aliqEfetCbs' => (float) $infNFSe->IBSCBS->valores->fed->pAliqEfetCBS,
+            'valorTotalCbs' => (float) $infNFSe->IBSCBS->totCIBS->gCBS->vCBS,
+        ];
+    }
+
+    /**
+     * Acessa um caminho de elementos opcionais do XML sem gerar warning de
+     * "read property on null" quando algum nó intermediário não existe
+     * (ex.: blocos só presentes em NFS-e emitidas sob a reforma do IBS/CBS).
+     */
+    private function safeXmlValue($node, array $path): string {
+        $current = $node;
+
+        foreach ($path as $prop) {
+            if (!isset($current->$prop)) {
+                return '';
+            }
+
+            $current = $current->$prop;
+        }
+
+        return (string) $current;
+    }
+
+    private function parseDestinatario($dps): array {
+        $empty = [
+            'existe' => false,
+            'doc' => '',
+            'nome' => '',
+            'email' => '',
+            'fone' => '',
+            'logradouro' => '',
+            'numero' => '',
+            'complemento' => '',
+            'bairro' => '',
+            'ibgeMunicipio' => '',
+            'cep' => '',
+        ];
+
+        $doc = $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'CNPJ']);
+        if ($doc === '') {
+            $doc = $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'CPF']);
+        }
+
+        $nome = $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'xNome']);
+
+        if ($doc === '' && $nome === '') {
+            return $empty;
+        }
+
+        return [
+            'existe' => true,
+            'doc' => $this->formatCnpjCpf($doc),
+            'nome' => $nome,
+            'email' => $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'email']),
+            'fone' => $this->formatPhone($this->safeXmlValue($dps, ['IBSCBS', 'dest', 'fone'])),
+            'logradouro' => $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'end', 'xLgr']),
+            'numero' => $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'end', 'nro']),
+            'complemento' => $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'end', 'xCpl']),
+            'bairro' => $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'end', 'xBairro']),
+            'ibgeMunicipio' => $this->safeXmlValue($dps, ['IBSCBS', 'dest', 'end', 'endNac', 'cMun']),
+            'cep' => $this->formatCep($this->safeXmlValue($dps, ['IBSCBS', 'dest', 'end', 'endNac', 'CEP'])),
+        ];
+    }
+
+    private function parseInfoComplementares($infNFSe, $dps): array {
+        $partes = [];
+
+        $add = function (string $label, string $valor) use (&$partes) {
+            if ($valor !== '') {
+                $partes[] = $label . $valor;
+            }
+        };
+
+        $add('Inf. Cont.: ', $this->safeXmlValue($dps, ['serv', 'infoCompl', 'xInfComp']));
+        $add('NFS-e Subst.: ', $this->safeXmlValue($dps, ['subst', 'chSubstda']));
+        $add('Doc. Ref.: ', $this->safeXmlValue($dps, ['serv', 'infoCompl', 'docRef']));
+        $add('Cod. Obra: ', $this->safeXmlValue($dps, ['serv', 'obra', 'cObra']));
+        $add('Insc. Imob.: ', $this->safeXmlValue($dps, ['IBSCBS', 'imovel', 'inscImobFisc']));
+        $add('Cod. Evt.: ', $this->safeXmlValue($dps, ['serv', 'atvEvento', 'idAtvEvt']));
+        $add('Doc. Tec.: ', $this->safeXmlValue($dps, ['serv', 'infoCompl', 'idDocTec']));
+        $add('Núm. Ped.: ', $this->safeXmlValue($dps, ['serv', 'infoCompl', 'xPed']));
+        $add('Item Ped.: ', $this->safeXmlValue($dps, ['serv', 'infoCompl', 'gItemPed', 'xItemPed']));
+        $add('Inf. A. T. Mun.: ', $this->safeXmlValue($infNFSe, ['xOutInf']));
+
+        $totalFed = $this->money((float) $this->safeXmlValue($dps, ['valores', 'trib', 'totTrib', 'vTotTrib', 'vTotTribFed']));
+        $totalEst = $this->money((float) $this->safeXmlValue($dps, ['valores', 'trib', 'totTrib', 'vTotTrib', 'vTotTribEst']));
+        $totalMun = $this->money((float) $this->safeXmlValue($dps, ['valores', 'trib', 'totTrib', 'vTotTrib', 'vTotTribMun']));
+
+        $totaisTributos = "Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: Federais: $totalFed ; Estaduais: $totalEst ; Municipais: $totalMun";
+
+        return [
+            'texto' => implode(' | ', $partes),
+            'totaisTributos' => $totaisTributos,
+        ];
     }
 
     /**
@@ -217,6 +458,8 @@ class NfsePdfGenerator {
         $this->addHorizontalLine();
         $this->addTomador();
         $this->addHorizontalLine();
+        $this->addDestinatario();
+        $this->addHorizontalLine();
         $this->addIntermediario();
         $this->addHorizontalLine();
         $this->addServico();
@@ -225,9 +468,13 @@ class NfsePdfGenerator {
         $this->addHorizontalLine();
         $this->addTributacaoFederal();
         $this->addHorizontalLine();
+
+        if (!empty($this->data['ibsCbs']['classTrib'])) {
+            $this->addTributacaoIbsCbs();
+            $this->addHorizontalLine();
+        }
+
         $this->addValores();
-        $this->addHorizontalLine();
-        $this->addTotaisTributos();
         $this->addHorizontalLine();
         $this->addInformacoesComplementares();
 
@@ -236,7 +483,24 @@ class NfsePdfGenerator {
         // This ensures it encompasses everything including "INFORMAÇÕES COMPLEMENTARES"
         $this->drawDocumentBorder();
 
+        if ($this->cancelada) {
+            $this->drawWatermark('CANCELADA');
+        } elseif ($this->substituida) {
+            $this->drawWatermark('SUBSTITUÍDA');
+        }
+
         return $this->pdf;
+    }
+
+    private function drawWatermark(string $texto) {
+        $this->pdf->SetFont('helvetica', 'B', 50);
+        $this->pdf->SetTextColor(165, 165, 165); // cinza K35 aproximado
+        $this->pdf->StartTransform();
+        $this->pdf->Rotate(45, 105, 148.5); // gira em torno do centro da página A4 (210x297mm)
+        $this->pdf->SetXY(5, 138);
+        $this->pdf->Cell(200, 20, $texto, 0, 0, 'C');
+        $this->pdf->StopTransform();
+        $this->pdf->SetTextColor(0, 0, 0);
     }
 
     private function drawDocumentBorder() {
@@ -247,11 +511,11 @@ class NfsePdfGenerator {
 
         $x1 = $this->margin - 3;
         $y1 = $this->margin - 3;
-        $width = $pageWidth - (2 * $this->margin - 5);  // Total width minus both margins
-        $height = $pageHeight - (2 * $this->margin - 5); // Total height minus both margins
+        $width = $pageWidth - (2 * $x1);  // Total width minus both margins (mantém a borda simétrica)
+        $height = $pageHeight - (2 * $y1); // Total height minus both margins (mantém a borda simétrica)
 
-        // Set line width for border
-        $this->pdf->SetLineWidth(0.1);
+        // Espessura de 1pt (NT-008 2.2.3) em mm: 1pt = 0,3528mm
+        $this->pdf->SetLineWidth(0.3528);
 
         // Draw rectangle border using absolute coordinates from page top
         // Rect(x, y, width, height, style)
@@ -262,13 +526,19 @@ class NfsePdfGenerator {
         $y = $this->pdf->GetY();
         $pageWidth = 210; // A4 width in mm
         $rightEdge = $pageWidth - $this->margin;
+        // Espessura de 0,5pt (NT-008 2.2.3) em mm: 0,5pt = 0,1764mm
+        $this->pdf->SetLineWidth(0.1764);
         $this->pdf->Line($this->margin, $y, $rightEdge, $y);
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
     }
 
     private function addHeader() {
         $startY = $this->pdf->GetY();
         $col4X = 147;
+
+        // Sombreamento cinza 5% do cabeçalho (NT-008 2.2.3)
+        $this->pdf->SetFillColor(242, 242, 242);
+        $this->pdf->Rect($this->margin, $startY, 210 - (2 * $this->margin), 12, 'F');
 
         // Left column - Logo image
         $logoPath = __DIR__ . '/../assets/logo-nfse-assinatura-horizontal.png';
@@ -276,14 +546,22 @@ class NfsePdfGenerator {
             $this->pdf->Image($logoPath, $this->margin, $startY, 50, 0, 'PNG', '', '', false, 300, '', false, false, 0, false, false, false);
         }
 
-        // Center column - Main title 
+        // Center column - Main title
         $centerX = 62;
         $this->pdf->SetXY($centerX, $startY);
         $this->pdf->SetFont($this->font, 'B', 9);
-        $this->pdf->Cell(50, 4, 'DANFSe v1.0', 0, 0, 'C');
+        $this->pdf->Cell(50, 4, 'DANFSe v2.0', 0, 0, 'C');
         $this->pdf->SetXY($centerX, $startY + 4);
         $this->pdf->SetFont($this->font, 'B', 9);
         $this->pdf->Cell(50, 4, 'Documento Auxiliar da NFS-e', 0, 0, 'C');
+
+        if ($this->data['tpAmb'] === '2') {
+            $this->pdf->SetXY($centerX, $startY + 8);
+            $this->pdf->SetFont($this->font, 'B', 9);
+            $this->pdf->SetTextColor(255, 0, 0);
+            $this->pdf->Cell(50, 4, 'NFS-e SEM VALIDADE JURÍDICA', 0, 0, 'C');
+            $this->pdf->SetTextColor(0, 0, 0);
+        }
 
         // Right column - Municipality info
         $imageX = $col4X - 15;
@@ -302,26 +580,17 @@ class NfsePdfGenerator {
             $this->pdf->Image($this->municipality['image'], $x, $y, $w, $h);
         }
 
+        $municipioUf = $this->data['localEmissao'] . ' / ' . ($this->data['emitente']['uf'] ?? '');
+
         $rowMunicipalityY = $startY;
         $this->pdf->SetXY($col4X, $startY);
-        $this->pdf->SetFont($this->font, 'B', 8);
-        $this->pdf->Cell(57, 3, 'Prefeitura Municipal de ' . $this->data['localEmissao'], 0, 1, 'L');
+        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->Cell(57, 3, 'Município: ' . $municipioUf, 0, 1, 'L');
         $this->pdf->SetXY($col4X, $rowMunicipalityY += 3);
         $this->pdf->SetFont($this->font, '', 6);
-
-        if (!empty($this->municipality['department'])) {
-            $this->pdf->Cell(57, 2.5, $this->municipality['department'], 0, 1, 'L');
-            $this->pdf->SetXY($col4X, $rowMunicipalityY += 2.5);
-        }
-
-        if (!empty($this->municipality['phone'])) {
-            $this->pdf->Cell(57, 2.5, $this->municipality['phone'], 0, 1, 'L');
-            $this->pdf->SetXY($col4X, $rowMunicipalityY += 2.5);
-        }
-
-        if (!empty($this->municipality['email'])) {
-            $this->pdf->Cell(57, 2.5, $this->municipality['email'], 0, 1, 'L');
-        }
+        $this->pdf->Cell(57, 2.5, 'Ambiente Gerador: ' . $this->ambienteGerador($this->data['ambGer']), 0, 1, 'L');
+        $this->pdf->SetXY($col4X, $rowMunicipalityY += 2.5);
+        $this->pdf->Cell(57, 2.5, 'Tipo de Ambiente: ' . $this->tipoAmbiente($this->data['tpAmb']), 0, 1, 'L');
 
         // Move Y position down for next content
         $this->pdf->SetY($startY + 12);
@@ -343,8 +612,8 @@ class NfsePdfGenerator {
         // Chave de Acesso row - spans all columns
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($col1W + $col2W + $col3W + $col4W, 4, 'Chave de Acesso da NFS-e', 0, 1, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->Cell($col1W + $col2W + $col3W + $col4W, 4, 'CHAVE DE ACESSO DA NFS-E', 0, 1, 'L');
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $startY + 4);
         $this->pdf->Cell($col1W + $col2W + $col3W + $col4W, 4, $this->data['chaveAcesso'], 0, 1, 'L');
 
@@ -376,14 +645,14 @@ class NfsePdfGenerator {
         // Now draw the text in columns 1-3
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $row1Y);
-        $this->pdf->Cell($col1W, 4, 'Número da NFS-e', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'NÚMERO DA NFS-E', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row1Y);
-        $this->pdf->Cell($col2W, 4, 'Competência da NFS-e', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, 'COMPETÊNCIA DA NFS-E', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row1Y);
-        $this->pdf->Cell($col3W, 4, 'Data e Hora da emissão da NFS-e', 0, 0, 'L');
+        $this->pdf->Cell($col3W, 4, 'DATA E HORA DA EMISSÃO DA NFS-E', 0, 0, 'L');
 
         // Second row - NFS-e data
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $row2Y = $row1Y + 4;
         $this->pdf->SetXY($col1X, $row2Y);
         $this->pdf->Cell($col1W, 4, $this->data['numeroNfse'], 0, 0, 'L');
@@ -400,16 +669,16 @@ class NfsePdfGenerator {
         $row3Y = $this->pdf->GetY();
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $row3Y);
-        $this->pdf->Cell($col1W, 4, 'Número da DPS', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'NÚMERO DA DPS', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row3Y);
-        $this->pdf->Cell($col2W, 4, 'Série da DPS', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, 'SÉRIE DA DPS', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row3Y);
-        $this->pdf->Cell($col3W, 4, 'Data e Hora da emissão da DPS', 0, 0, 'L');
+        $this->pdf->Cell($col3W, 4, 'DATA E HORA DA EMISSÃO DA DPS', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row3Y);
         $this->pdf->Cell($col4W, 4, '', 0, 1, 'L');
 
         // Fourth row - DPS data (authenticity message in 4th column, below QR code)
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $row4Y = $row3Y + 4;
         $this->pdf->SetXY($col1X, $row4Y);
         $this->pdf->Cell($col1W, 4, $this->data['dps']['numero'], 0, 0, 'L');
@@ -424,7 +693,27 @@ class NfsePdfGenerator {
         $message = 'A autenticidade desta NFS-e pode ser verificada pela leitura deste código QR ou pela consulta da chave de acesso no portal nacional da NFS-e';
         $this->pdf->MultiCell($col4W - 1, 1, $message, 0, 'L', false, 1, $col4X, $row4Y - 4);
 
-        $this->pdf->Ln(2);
+        // Fifth row - Emitente da NFS-e / Situação da NFS-e / Finalidade
+        $row5Y = $row4Y + 4;
+        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetXY($col1X, $row5Y);
+        $this->pdf->Cell($col1W, 4, 'EMITENTE DA NFS-E', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row5Y);
+        $this->pdf->Cell($col2W, 4, 'SITUAÇÃO DA NFS-E', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row5Y);
+        $this->pdf->Cell($col3W, 4, 'FINALIDADE', 0, 1, 'L');
+
+        // Sixth row - data
+        $this->pdf->SetFont($this->font, '', 7);
+        $row6Y = $row5Y + 4;
+        $this->pdf->SetXY($col1X, $row6Y);
+        $this->pdf->Cell($col1W, 4, $this->emitenteNFSe($this->data['tpEmit']), 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row6Y);
+        $this->pdf->Cell($col2W, 4, $this->situacaoNFSe($this->data['cStat']), 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row6Y);
+        $this->pdf->Cell($col3W, 4, $this->finalidadeNFSe($this->data['ibsCbs']['finNFSe']), 0, 1, 'L');
+
+        $this->pdf->Ln(1);
     }
 
     private function addEmitente() {
@@ -443,7 +732,8 @@ class NfsePdfGenerator {
         // Header row
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($col1W, 4, 'EMITENTE DA NFS-e', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'PRESTADOR / FORNECEDOR', 0, 0, 'L');
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col2X, $startY);
         $this->pdf->Cell($col2W, 4, 'CNPJ / CPF / NIF', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY);
@@ -452,7 +742,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, 'Telefone', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $startY + 4);
         $this->pdf->Cell($col1W, 4, 'Prestador do Serviço', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY + 4);
@@ -464,7 +754,7 @@ class NfsePdfGenerator {
 
         // Header row
         $row2Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row2Y);
         $this->pdf->Cell($col1W, 4, 'Nome / Nome Empresarial', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y);
@@ -475,7 +765,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, '', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row2Y + 4);
         $this->pdf->MultiCell($col1W + $col2W, 4, $emit['nome'], 0, 'L');
 
@@ -487,7 +777,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, '', 0, 1, 'L');
 
         // Header row
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row3Y);
         $this->pdf->Cell($col1W, 4, 'Endereço', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row3Y);
@@ -495,12 +785,13 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col3X, $row3Y);
         $this->pdf->Cell($col3W, 4, 'Município', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row3Y);
-        $this->pdf->Cell($col4W, 4, 'CEP', 0, 1, 'L');
+        $this->pdf->Cell($col4W, 4, 'Código IBGE / CEP', 0, 1, 'L');
 
-        $endereco = $emit['logradouro'] . ', ' . $emit['numero'] . ', ' . $emit['bairro'];
+        $complementoEmit = !empty($emit['complemento']) ? ', ' . $emit['complemento'] : '';
+        $endereco = $emit['logradouro'] . ', ' . $emit['numero'] . $complementoEmit . ', ' . $emit['bairro'];
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row3Y + 4);
         $this->pdf->MultiCell($col1W + $col2W, 4, $endereco, 0, 'L');
 
@@ -509,22 +800,22 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col3X, $row3Y + 4);
         $this->pdf->Cell($col3W, 4, $this->data['localEmissao'] . ' - ' . $emit['uf'], 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row3Y + 4);
-        $this->pdf->Cell($col4W, 4, $emit['cep'], 0, 1, 'L');
+        $this->pdf->Cell($col4W, 4, $emit['municipio'] . ' / ' . $emit['cep'], 0, 1, 'L');
 
         // Header row
         $this->pdf->SetXY($col1X, $row4Y);
-        $this->pdf->setFont($this->font, 'B', 8);
+        $this->pdf->setFont($this->font, 'B', 6);
         $this->pdf->Cell($col1W, 4, 'Simples Nacional na Data de Competência', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $this->pdf->GetY());
         $this->pdf->Cell($col3W + $col4W, 4, 'Regime de Apuração Tributária pelo SN', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $this->pdf->GetY());
         $this->pdf->Cell($col1W, 4, $this->optanteSimplesNacional($emit['optanteSimplesNacional']), 0, 0, 'L');
         $this->pdf->SetXY($col3X, $this->pdf->GetY());
         $this->pdf->MultiCell($col3W + $col4W, 4, $this->regimeApuracaoTributariaSN($emit['regimeApuracaoTributariaSN']), 0, 'L');
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
     }
 
     private function addTomador() {
@@ -538,12 +829,22 @@ class NfsePdfGenerator {
         $col4W = 50;
 
         $toma = $this->data['tomador'];
+
+        if (empty($toma['existe'])) {
+            $this->pdf->SetFont($this->font, 'B', 7);
+            $this->pdf->Cell(0, 0, 'TOMADOR/ADQUIRENTE DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e', 0, 1, 'C');
+            $this->pdf->Ln(1);
+
+            return;
+        }
+
         $startY = $this->pdf->GetY();
 
         // Header row
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->SetXY($col1X, $startY);
         $this->pdf->Cell($col1W, 4, 'TOMADOR DO SERVIÇO', 0, 0, 'L');
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col2X, $startY);
         $this->pdf->Cell($col2W, 4, 'CNPJ / CPF / NIF', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY);
@@ -552,7 +853,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, 'Telefone', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $startY + 4);
         $this->pdf->Cell($col1W, 4, '', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY + 4);
@@ -564,7 +865,7 @@ class NfsePdfGenerator {
 
         // Header row
         $row2Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row2Y);
         $this->pdf->Cell($col1W, 4, 'Nome / Nome Empresarial', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y);
@@ -575,7 +876,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, '', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row2Y + 4);
         $this->pdf->MultiCell($col1W + $col2W, 4, $toma['nome'], 0, 'L');
 
@@ -585,7 +886,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col3W + $col4W, 4, $toma['email'], 0, 0, 'L');
 
         // Header row
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row3Y);
         $this->pdf->Cell($col1W, 4, 'Endereço', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row3Y);
@@ -593,12 +894,12 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col3X, $row3Y);
         $this->pdf->Cell($col3W, 4, 'Município', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row3Y);
-        $this->pdf->Cell($col4W, 4, 'CEP', 0, 1, 'L');
+        $this->pdf->Cell($col4W, 4, 'Código IBGE / CEP', 0, 1, 'L');
 
         [$tomadorCidade, $tomadorEndereco] = $this->enderecoTomador($toma);
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row3Y + 4);
         $this->pdf->MultiCell($col1W + $col2W, 4, $tomadorEndereco, 0, 'L');
 
@@ -607,17 +908,112 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col3X, $row3Y + 4);
         $this->pdf->Cell($col3W, 4, $tomadorCidade, 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row3Y + 4);
-        $this->pdf->Cell($col4W, 4, $toma['cep'], 0, 1, 'L');
+        $this->pdf->Cell($col4W, 4, $toma['ibgeMunicipio'] . ' / ' . $toma['cep'], 0, 1, 'L');
 
         $this->pdf->setY($row4Y); // após o final do endereco
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
+    }
+
+    private function addDestinatario() {
+        $col1X = $this->margin;
+        $col2X = 47;
+        $col3X = 97;
+        $col4X = 147;
+        $col1W = 45;
+        $col2W = 50;
+        $col3W = 50;
+        $col4W = 50;
+
+        $dest = $this->data['destinatario'];
+        $toma = $this->data['tomador'];
+
+        if (empty($dest['existe'])) {
+            $this->pdf->SetFont($this->font, 'B', 7);
+            $this->pdf->Cell(0, 0, 'DESTINATÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e', 0, 1, 'C');
+            $this->pdf->Ln(1);
+
+            return;
+        }
+
+        if (!empty($toma['doc']) && $dest['doc'] === $toma['doc']) {
+            $this->pdf->SetFont($this->font, 'B', 7);
+            $this->pdf->Cell(0, 0, 'O DESTINATÁRIO É O PRÓPRIO TOMADOR/ADQUIRENTE DA OPERAÇÃO', 0, 1, 'C');
+            $this->pdf->Ln(1);
+
+            return;
+        }
+
+        $startY = $this->pdf->GetY();
+
+        // Header row
+        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetXY($col1X, $startY);
+        $this->pdf->Cell($col1W, 4, 'DESTINATÁRIO DA OPERAÇÃO', 0, 0, 'L');
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col2X, $startY);
+        $this->pdf->Cell($col2W, 4, 'CNPJ / CPF / NIF', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $startY);
+        $this->pdf->Cell($col3W, 4, 'Telefone', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col2X, $startY + 4);
+        $this->pdf->Cell($col2W, 4, $dest['doc'], 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $startY + 4);
+        $this->pdf->Cell($col3W, 4, $dest['fone'], 0, 1, 'L');
+
+        // Header row
+        $row2Y = $this->pdf->GetY();
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row2Y);
+        $this->pdf->Cell($col1W, 4, 'Nome / Nome Empresarial', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row2Y);
+        $this->pdf->Cell($col3W, 4, 'E-mail', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row2Y + 4);
+        $this->pdf->MultiCell($col1W + $col2W, 4, $dest['nome'], 0, 'L');
+
+        $row3Y = max($this->pdf->GetY(), $row2Y + 4); // altura abaixo do multicell, que pode quebrar de linha
+
+        $this->pdf->SetXY($col3X, $row2Y + 4);
+        $this->pdf->Cell($col3W + $col4W, 4, $dest['email'], 0, 0, 'L');
+
+        // Header row
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row3Y);
+        $this->pdf->Cell($col1W, 4, 'Endereço', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row3Y);
+        $this->pdf->Cell($col3W, 4, 'Município', 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row3Y);
+        $this->pdf->Cell($col4W, 4, 'Código IBGE / CEP', 0, 1, 'L');
+
+        $complemento = !empty($dest['complemento']) ? ', ' . $dest['complemento'] : '';
+        $endereco = $dest['logradouro'] . ', ' . $dest['numero'] . $complemento . ', ' . $dest['bairro'];
+        $cidade = !empty($dest['municipio']) ? $dest['municipio'] . ' - ' . $dest['uf'] : '-';
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row3Y + 4);
+        $this->pdf->MultiCell($col1W + $col2W, 4, $endereco, 0, 'L');
+
+        $row4Y = max($this->pdf->GetY(), $row3Y + 4); // altura abaixo do multicell, que pode quebrar de linha
+
+        $this->pdf->SetXY($col3X, $row3Y + 4);
+        $this->pdf->Cell($col3W, 4, $cidade, 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row3Y + 4);
+        $this->pdf->Cell($col4W, 4, $dest['ibgeMunicipio'] . ' / ' . $dest['cep'], 0, 1, 'L');
+
+        $this->pdf->setY($row4Y); // após o final do endereco
+        $this->pdf->Ln(1);
     }
 
     private function addIntermediario() {
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->Cell(0, 0, 'INTERMEDIÁRIO DO SERVIÇO NÃO IDENTIFICADO NA NFS-e', 0, 1, 'C');
 
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
     }
 
     private function addServico() {
@@ -632,48 +1028,83 @@ class NfsePdfGenerator {
 
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->Cell(0, 4, 'SERVIÇO PRESTADO', 0, 1, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
 
         $startY = $this->pdf->GetY();
-
-        // Header row
-        $this->pdf->SetFont($this->font, 'B', 7);
-        $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($col1W, 4, 'Código de Tributação Nacional', 0, 0, 'L');
-        $this->pdf->SetXY($col2X, $startY);
-        $this->pdf->Cell($col2W, 4, 'Código de Tributação Municipal', 0, 0, 'L');
-        $this->pdf->SetXY($col3X, $startY);
-        $this->pdf->Cell($col3W, 4, 'Local da Prestação', 0, 0, 'L');
-        $this->pdf->SetXY($col4X, $startY);
-        $this->pdf->Cell($col4W, 4, 'País da Prestação', 0, 1, 'L');
 
         $serv = $this->data['servico'];
 
         $codTribNac = $this->formatCodTribNac($serv['codTribNac']) . ' - ' . $this->data['tribNac'];
-        $codTribNac = $this->truncateTextToLines($codTribNac, $col1W - 2, 2);
 
-        // Data row - Format code as 01.03.02
-        $this->pdf->SetFont($this->font, '', 8);
+        $codTribMun = $serv['codTribMun'];
+        if (!empty($serv['descTribMun'])) {
+            $codTribMun .= ' - ' . $serv['descTribMun'];
+        }
+        $codTribMun = $this->truncateTextToLines($codTribMun, $col1W - 2, 2);
+
+        $localPrestacao = $this->data['localPrestacao'];
+        if (!empty($this->data['localPrestacaoUf'])) {
+            $localPrestacao .= ' - ' . $this->data['localPrestacaoUf'];
+        }
+
+        // Header row - Código de Tributação Nacional (linha inteira)
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $startY);
+        $this->pdf->Cell($col1W + $col2W + $col3W + $col4W, 4, 'Código de Tributação Nacional', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $startY + 4);
-        $this->pdf->MultiCell($col1W, 4, $codTribNac, 0, 'L');
+        $this->pdf->MultiCell($col1W + $col2W + $col3W + $col4W, 4, $codTribNac, 0, 'L');
 
-        $row2Y = max($this->pdf->GetY(), $startY + 4); // altura abaixo do multicell, que pode quebrar de linha
+        $row2Y = max($this->pdf->GetY(), $startY + 4);
 
-        $this->pdf->SetXY($col2X, $startY + 4);
-        $this->pdf->Cell($col2W, 4, $serv['codTribMun'], 0, 0, 'L');
-        $this->pdf->SetXY($col3X, $startY + 4);
-        $this->pdf->Cell($col3W, 4, $this->data['localPrestacao'], 0, 0, 'L');
-        $this->pdf->SetXY($col4X, $startY + 4);
-        $this->pdf->Cell($col4W, 4, '-', 0, 1, 'L');
-
-        // Descrição
-        $this->pdf->SetFont($this->font, 'B', 7);
+        // Header row - Código de Tributação Municipal / Local da Prestação / País da Prestação
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row2Y);
-        $this->pdf->Cell($col1W, 4, 'Descrição do Serviço', 0, 0, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->Cell($col1W, 4, 'Código de Tributação Municipal', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y);
+        $this->pdf->Cell($col2W, 4, 'Local da Prestação', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row2Y);
+        $this->pdf->Cell($col3W, 4, 'País da Prestação', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row2Y + 4);
+        $this->pdf->MultiCell($col1W, 4, $codTribMun, 0, 'L');
+        $row3YCol1 = $this->pdf->GetY();
+
+        $this->pdf->SetXY($col2X, $row2Y + 4);
+        $this->pdf->Cell($col2W, 4, $localPrestacao, 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row2Y + 4);
+        $this->pdf->Cell($col3W, 4, $this->paisIso($this->data['localPrestacaoPais']), 0, 1, 'L');
+
+        $row3Y = max($row3YCol1, $row2Y + 4); // altura abaixo do multicell, que pode quebrar de linha
+
+        // Código NBS / Descrição do Serviço
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row3Y);
+        $this->pdf->Cell($col1W, 4, 'Código NBS', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row3Y);
+        $this->pdf->Cell($col2W + $col3W + $col4W, 4, 'Descrição do Serviço', 0, 1, 'L');
+
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row3Y + 4);
+        $nbs = $serv['nbs'];
+        if (!empty($serv['descNbs'])) {
+            $nbs .= ' - ' . $serv['descNbs'];
+        }
+        $this->pdf->MultiCell($col1W, 4, $nbs, 0, 'L');
+        $row4YCol1 = $this->pdf->GetY();
+
+        $this->pdf->SetXY($col2X, $row3Y + 4);
         $this->pdf->MultiCell($col2W + $col3W + $col4W, 4, $serv['descricao'], 0, 'L');
-        $this->pdf->Ln(2);
+        $row4YCol2 = $this->pdf->GetY();
+
+        $row4Y = max($row4YCol1, $row4YCol2, $row3Y + 4);
+
+        $this->pdf->setY($row4Y);
+        $this->pdf->Ln(1);
     }
 
     private function addTributacaoMunicipal() {
@@ -689,14 +1120,22 @@ class NfsePdfGenerator {
         $trib = $this->data['tributacao'];
         $val = $this->data['valores'];
 
+        if (empty($trib['existeTribMun'])) {
+            $this->pdf->SetFont($this->font, 'B', 7);
+            $this->pdf->Cell(0, 0, 'TRIBUTAÇÃO MUNICIPAL (ISSQN) - OPERAÇÃO NÃO SUJEITA AO ISSQN', 0, 1, 'C');
+            $this->pdf->Ln(1);
+
+            return;
+        }
+
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->Cell(0, 4, 'TRIBUTAÇÃO MUNICIPAL', 0, 1, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
 
         $startY = $this->pdf->GetY();
 
         // Header row
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $startY);
         $this->pdf->Cell($col1W, 4, 'Tributação do ISSQN', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY);
@@ -706,20 +1145,25 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col4X, $startY);
         $this->pdf->Cell($col4W, 4, 'Regime Especial de Tributação', 0, 1, 'L');
 
+        $localIncidencia = $this->data['localIncidencia'];
+        if (!empty($this->data['localIncidenciaUf'])) {
+            $localIncidencia .= ' - ' . $this->data['localIncidenciaUf'];
+        }
+
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $startY + 4);
         $this->pdf->Cell($col1W, 4, $this->tributacaoISSQN($trib['tipoTributacaoISSQN']), 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY + 4);
-        $this->pdf->Cell($col2W, 4, '-', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, $this->paisIso($this->data['localIncidenciaPais']), 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY + 4);
-        $this->pdf->Cell($col3W, 4, $this->data['localIncidencia'], 0, 0, 'L');
+        $this->pdf->Cell($col3W, 4, $localIncidencia, 0, 0, 'L');
         $this->pdf->SetXY($col4X, $startY + 4);
         $this->pdf->Cell($col4W, 4, $this->regimeEspecialTributacao($trib['regimeEspecialTributacao']), 0, 1, 'L');
 
         // Header row
         $row2Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row2Y);
         $this->pdf->Cell($col1W, 4, 'Tipo de Imunidade', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y);
@@ -730,7 +1174,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, 'Benefício Municipal', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row2Y + 4);
         $this->pdf->Cell($col1W, 4, $this->tipoImunidade($trib['tipoImunidade']), 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y + 4);
@@ -738,11 +1182,11 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col3X, $row2Y + 4);
         $this->pdf->Cell($col3W, 4, $trib['nProcessoSuspensao'] ?: '-', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row2Y + 4);
-        $this->pdf->Cell($col4W, 4, $trib['nBeneficioMunicipal'] ?: '-', 0, 1, 'L');
+        $this->pdf->Cell($col4W, 4, $this->tipoBeneficioMunicipal($trib['tipoBeneficioMunicipal']), 0, 1, 'L');
 
         // Header row
         $row3Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row3Y);
         $this->pdf->Cell($col1W, 4, 'Valor do Serviço', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row3Y);
@@ -753,7 +1197,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, 'Cálculo do BM', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row3Y + 4);
         $this->pdf->Cell($col1W, 4, $val['servico'], 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row3Y + 4);
@@ -765,7 +1209,7 @@ class NfsePdfGenerator {
 
         // Header row
         $row4Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row4Y);
         $this->pdf->Cell($col1W, 4, 'BC ISSQN', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row4Y);
@@ -776,7 +1220,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, 'ISSQN Apurado', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row4Y + 4);
         $this->pdf->Cell($col1W, 4, $val['baseCalculoISSQN'], 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row4Y + 4);
@@ -785,7 +1229,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col3W, 4, $this->tipoRetencaoISSQN($trib['tipoRetencaoISSQN']), 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row4Y + 4);
         $this->pdf->Cell($col4W, 4, $val['ISSQN'], 0, 1, 'L');
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
     }
 
     private function addTributacaoFederal() {
@@ -803,11 +1247,11 @@ class NfsePdfGenerator {
 
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->Cell(0, 4, 'TRIBUTAÇÃO FEDERAL', 0, 1, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
 
         // Header row
         $row5Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row5Y);
         $this->pdf->Cell($col1W, 4, 'IRRF', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row5Y);
@@ -818,7 +1262,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, '', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row5Y + 4);
         $this->pdf->Cell($col1W, 4, $val['IRRF'], 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row5Y + 4);
@@ -830,7 +1274,7 @@ class NfsePdfGenerator {
 
         // Header row
         $row6Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row6Y);
         $this->pdf->Cell($col1W, 4, 'PIS - Débito apuração própria', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row6Y);
@@ -841,7 +1285,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, 'TOTAL TRIBUTAÇÃO FEDERAL', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row6Y + 4);
         $this->pdf->Cell($col1W, 4, $val['PIS'], 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row6Y + 4);
@@ -850,14 +1294,125 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col3W, 4, $this->retencaoPisCofins($trib['tipoRetencaoPisCofins']), 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row6Y + 4);
         $this->pdf->Cell($col4W, 4, $val['totalTributosFederais'], 0, 1, 'L');
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
+    }
+
+    private function addTributacaoIbsCbs() {
+        $col1X = $this->margin;
+        $col2X = 47;
+        $col3X = 97;
+        $col4X = 147;
+        $col1W = 45;
+        $col2W = 50;
+        $col3W = 50;
+        $col4W = 50;
+
+        $ibsCbs = $this->data['ibsCbs'];
+
+        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->Cell(0, 4, 'TRIBUTAÇÃO IBS/CBS', 0, 1, 'L');
+        $this->pdf->SetFont($this->font, '', 7);
+
+        $localidadeIncid = $ibsCbs['localidadeIncid'];
+        if (!empty($ibsCbs['localidadeIncidUf'])) {
+            $localidadeIncid .= ' - ' . $ibsCbs['localidadeIncidUf'];
+        }
+
+        $indicadorOperacao = $ibsCbs['cIndOp'] . ' / ' . $ibsCbs['localidadeIncidIbge'] . ' / ' . $localidadeIncid;
+        $reducaoAliquota = $ibsCbs['reducaoAliqIbsUf'] . ' / ' . $ibsCbs['reducaoAliqIbsMun'] . ' / ' . $ibsCbs['reducaoAliqCbs'];
+        $aliquotaIbsUfMun = $ibsCbs['aliqIbsUf'] . ' / ' . $ibsCbs['aliqIbsMun'];
+
+        // Header row
+        $row1Y = $this->pdf->GetY();
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row1Y);
+        $this->pdf->Cell($col1W, 4, 'CST / Classificação Tributária', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row1Y);
+        $this->pdf->Cell($col2W + $col3W, 4, 'Indicador de Operação / Código IBGE / Município / UF de Incidência', 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row1Y);
+        $this->pdf->Cell($col4W, 4, 'Exclusões/Reduções da BC', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row1Y + 4);
+        $this->pdf->Cell($col1W, 4, $ibsCbs['cst'] . ' / ' . $ibsCbs['classTrib'], 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row1Y + 4);
+        $this->pdf->Cell($col2W + $col3W, 4, $indicadorOperacao, 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row1Y + 4);
+        $this->pdf->Cell($col4W, 4, $ibsCbs['exclusoesReducoes'], 0, 1, 'L');
+
+        // Header row
+        $row2Y = $this->pdf->GetY();
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row2Y);
+        $this->pdf->Cell($col1W, 4, 'BC Após Exclusões/Reduções', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row2Y);
+        $this->pdf->Cell($col2W, 4, 'Red. Alíquota IBS (UF/Mun) / CBS', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row2Y);
+        $this->pdf->Cell($col3W, 4, 'Alíquota IBS (UF / Mun)', 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row2Y);
+        $this->pdf->Cell($col4W, 4, 'Alíquota Efetiva IBS Municipal', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row2Y + 4);
+        $this->pdf->Cell($col1W, 4, $ibsCbs['baseCalculo'], 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row2Y + 4);
+        $this->pdf->Cell($col2W, 4, $reducaoAliquota, 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row2Y + 4);
+        $this->pdf->Cell($col3W, 4, $aliquotaIbsUfMun, 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row2Y + 4);
+        $this->pdf->Cell($col4W, 4, $ibsCbs['aliqEfetIbsMun'], 0, 1, 'L');
+
+        // Header row
+        $row3Y = $this->pdf->GetY();
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row3Y);
+        $this->pdf->Cell($col1W, 4, 'Valor Apurado IBS Municipal', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row3Y);
+        $this->pdf->Cell($col2W, 4, 'Alíquota Efetiva IBS Estadual', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row3Y);
+        $this->pdf->Cell($col3W, 4, 'Valor Apurado IBS Estadual', 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row3Y);
+        $this->pdf->Cell($col4W, 4, 'Valor Total Apurado do IBS', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row3Y + 4);
+        $this->pdf->Cell($col1W, 4, $ibsCbs['valorIbsMun'], 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row3Y + 4);
+        $this->pdf->Cell($col2W, 4, $ibsCbs['aliqEfetIbsUf'], 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row3Y + 4);
+        $this->pdf->Cell($col3W, 4, $ibsCbs['valorIbsUf'], 0, 0, 'L');
+        $this->pdf->SetXY($col4X, $row3Y + 4);
+        $this->pdf->Cell($col4W, 4, $ibsCbs['valorTotalIbs'], 0, 1, 'L');
+
+        // Header row
+        $row4Y = $this->pdf->GetY();
+        $this->pdf->SetFont($this->font, 'B', 6);
+        $this->pdf->SetXY($col1X, $row4Y);
+        $this->pdf->Cell($col1W, 4, 'Alíquota da CBS', 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row4Y);
+        $this->pdf->Cell($col2W, 4, 'Alíquota Efetiva da CBS', 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row4Y);
+        $this->pdf->Cell($col3W, 4, 'Valor Total Apurado da CBS', 0, 1, 'L');
+
+        // Data row
+        $this->pdf->SetFont($this->font, '', 7);
+        $this->pdf->SetXY($col1X, $row4Y + 4);
+        $this->pdf->Cell($col1W, 4, $ibsCbs['aliqCbs'], 0, 0, 'L');
+        $this->pdf->SetXY($col2X, $row4Y + 4);
+        $this->pdf->Cell($col2W, 4, $ibsCbs['aliqEfetCbs'], 0, 0, 'L');
+        $this->pdf->SetXY($col3X, $row4Y + 4);
+        $this->pdf->Cell($col3W, 4, $ibsCbs['valorTotalCbs'], 0, 1, 'L');
+        $this->pdf->Ln(1);
     }
 
     private function addValores() {
-        $col1X = $this->margin; // Adjusted for 2mm margin (was 10)
-        $col2X = 47; // Adjusted for 2mm margin (was 55, now 55-8=47)
-        $col3X = 97; // Adjusted for 2mm margin (was 105, now 105-8=97)
-        $col4X = 147; // Adjusted for 2mm margin (was 155, now 155-8=147)
+        $col1X = $this->margin;
+        $col2X = 47;
+        $col3X = 97;
+        $col4X = 147;
         $col1W = 45;
         $col2W = 50;
         $col3W = 50;
@@ -865,89 +1420,54 @@ class NfsePdfGenerator {
 
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->Cell(0, 4, 'VALOR TOTAL DA NFS-E', 0, 1, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
 
         $val = $this->data['valores'];
+        $ibsCbs = $this->data['ibsCbs'];
         $startY = $this->pdf->GetY();
 
         // Header row
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($col1W, 4, 'Valor do Serviço', 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, 'Valor da Operação / Serviço', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY);
-        $this->pdf->Cell($col2W, 4, 'Desconto Condicionado', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, 'Desconto Incondicionado', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY);
-        $this->pdf->Cell($col3W, 4, 'Desconto Incondicionado', 0, 0, 'L');
-        $this->pdf->SetXY($col4X, $startY);
-        $this->pdf->Cell($col4W, 4, 'ISSQN Retido', 0, 1, 'L');
+        $this->pdf->Cell($col3W, 4, 'Desconto Condicionado', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $startY + 4);
         $this->pdf->Cell($col1W, 4, $val['servico'], 0, 0, 'L');
         $this->pdf->SetXY($col2X, $startY + 4);
-        $this->pdf->Cell($col2W, 4, '-', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, $val['descontoIncondicionado'], 0, 0, 'L');
         $this->pdf->SetXY($col3X, $startY + 4);
-        $this->pdf->Cell($col3W, 4, '-', 0, 0, 'L');
-        $this->pdf->SetXY($col4X, $startY + 4);
-        $this->pdf->Cell($col4W, 4, '-', 0, 1, 'L');
+        $this->pdf->Cell($col3W, 4, $val['descontoCondicionado'], 0, 1, 'L');
 
         // Header row
         $row2Y = $this->pdf->GetY();
-        $this->pdf->SetFont($this->font, 'B', 7);
+        $this->pdf->SetFont($this->font, 'B', 6);
         $this->pdf->SetXY($col1X, $row2Y);
         $this->pdf->Cell($col1W, 4, 'Total das Retenções Federais', 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y);
-        $this->pdf->Cell($col2W, 4, 'PIS/COFINS - Débito Apur. Própria', 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, 'Valor Líquido da NFS-e', 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row2Y);
-        $this->pdf->Cell($col3W, 4, '', 0, 0, 'L');
+        $this->pdf->Cell($col3W, 4, 'Total do IBS/CBS', 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row2Y);
-        $this->pdf->Cell($col4W, 4, 'Valor Líquido da NFS-e', 0, 1, 'L');
+        $this->pdf->Cell($col4W, 4, 'Valor Líquido da NFS-e + IBS/CBS', 0, 1, 'L');
 
         // Data row
-        $this->pdf->SetFont($this->font, '', 8);
+        $this->pdf->SetFont($this->font, '', 7);
         $this->pdf->SetXY($col1X, $row2Y + 4);
-        $this->pdf->Cell($col1W, 4, $val['IrrfCpCsllRetidos'], 0, 0, 'L');
+        $this->pdf->Cell($col1W, 4, $val['totalRetencoes'], 0, 0, 'L');
         $this->pdf->SetXY($col2X, $row2Y + 4);
-        $this->pdf->Cell($col2W, 4, $val['PisCofinsRetidos'], 0, 0, 'L');
+        $this->pdf->Cell($col2W, 4, $val['liquido'], 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row2Y + 4);
-        $this->pdf->Cell($col3W, 4, '', 0, 0, 'L');
+        $this->pdf->Cell($col3W, 4, $ibsCbs['valorTotalIbsCbs'], 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row2Y + 4);
-        $this->pdf->Cell($col4W, 4, $val['liquido'], 0, 1, 'L');
-        $this->pdf->Ln(2);
-    }
+        $this->pdf->Cell($col4W, 4, $ibsCbs['liquidoComIbsCbs'], 0, 1, 'L');
 
-    private function addTotaisTributos() {
-        $colW = 65;
-        $col1X = $this->margin;
-        $col2X = $col1X + $colW;
-        $col3X = $col2X + $colW + 4;
-
-        $this->pdf->SetFont($this->font, 'B', 7);
-        $this->pdf->Cell(0, 4, 'TOTAIS APROXIMADOS DOS TRIBUTOS', 0, 1, 'L');
-        $this->pdf->SetFont($this->font, '', 8);
-
-        $val = $this->data['valores'];
-        $startY = $this->pdf->GetY();
-
-        // Header row
-        $this->pdf->SetFont($this->font, 'B', 7);
-        $this->pdf->SetXY($col1X, $startY);
-        $this->pdf->Cell($colW, 4, 'Federais', 0, 0, 'C');
-        $this->pdf->SetXY($col2X, $startY);
-        $this->pdf->Cell($colW + 4, 4, 'Estaduais', 0, 0, 'C');
-        $this->pdf->SetXY($col3X, $startY);
-        $this->pdf->Cell($colW, 4, 'Municípios', 0, 1, 'C');
-
-        // Data row
-        $this->pdf->SetFont($this->font, '', 8);
-        $this->pdf->SetXY($col1X, $startY + 4);
-        $this->pdf->Cell($colW, 4, $val['totalTributosFederais'], 0, 0, 'C');
-        $this->pdf->SetXY($col2X, $startY + 4);
-        $this->pdf->Cell($colW + 4, 4, $val['totalTributosEstaduais'], 0, 0, 'C');
-        $this->pdf->SetXY($col3X, $startY + 4);
-        $this->pdf->Cell($colW, 4, $val['totalTributosMunicipais'], 0, 1, 'C');
-        $this->pdf->Ln(2);
+        $this->pdf->Ln(1);
     }
 
     private function addInformacoesComplementares() {
@@ -956,14 +1476,12 @@ class NfsePdfGenerator {
         $this->pdf->Cell(0, 4, 'INFORMAÇÕES COMPLEMENTARES', 0, 1, 'L');
         $this->pdf->SetFont($this->font, '', 7);
 
-        // Data row
-        if (!empty($this->data['servico']['infoComp']) || !empty($this->data['servico']['nbs'])) {
-            $infoComp = $this->data['servico']['infoComp'] ?? '';
-            $infoComp = $infoComp ? $infoComp . "\n" : '';
-            $infoComp .= 'NBS: ' . $this->data['servico']['nbs'];
+        $info = $this->data['infoComplementares'];
 
-            $this->pdf->MultiCell(0, 0, $infoComp, 0, 'L');
-        }
+        // Totais Aproximados dos Tributos é obrigatório; o restante só aparece quando preenchido
+        $texto = $info['texto'] !== '' ? $info['texto'] . ' | ' . $info['totaisTributos'] : $info['totaisTributos'];
+
+        $this->pdf->MultiCell(0, 0, $texto, 0, 'L');
     }
 
 
@@ -972,13 +1490,10 @@ class NfsePdfGenerator {
 
         if ($cidade) {
             $cidade = "$toma[municipio] - $toma[uf]";
+        } elseif (!empty($toma['ibgeMunicipio'])) {
+            $cidade = 'Município IBGE ' . $toma['ibgeMunicipio'];
         } else {
-            $cidade_emissao = $this->data['localEmissao'];
-            $cidade_prestacao = $this->data['localPrestacao'];
-
-            $cidade = !empty($cidade_prestacao) && $cidade_prestacao != $cidade_emissao
-                ? $cidade_prestacao
-                : $cidade_emissao;
+            $cidade = '-';
         }
 
         $complemento = !empty($toma['complemento']) ? ", $toma[complemento]" : '';
@@ -1110,6 +1625,63 @@ class NfsePdfGenerator {
 
 
     // auxiliary functions
+    private function emitenteNFSe($cTpEmit): string {
+        // NFSe/infNFSe/DPS/infDPS/tpEmit
+        // 1 - Prestador; 2 - Tomador; 3 - Intermediário;
+        $tpEmit = ['1' => 'Prestador', '2' => 'Tomador', '3' => 'Intermediário'];
+
+        return $tpEmit[$cTpEmit] ?? ($cTpEmit !== '' ? "tpEmit $cTpEmit" : '-');
+    }
+
+    private function situacaoNFSe($cStat): string {
+        // NFSe/infNFSe/cStat
+        $cStat = (string) $cStat;
+        $situacoes = [
+            '100' => 'Autorizado o uso da NF-e',
+            '101' => 'Cancelamento homologado',
+            '102' => 'Inutilização homologada',
+            '110' => 'Uso denegado',
+            '150' => 'Autorizado fora do prazo',
+            '301' => 'Uso denegado',
+            '302' => 'Uso denegado',
+        ];
+
+        return $situacoes[$cStat] ?? ($cStat !== '' ? "cStat $cStat" : '-');
+    }
+
+    private function finalidadeNFSe($cFinNFSe): string {
+        // NFSe/infNFSe/DPS/infDPS/IBSCBS/finNFSe
+        $finNFSe = ['0' => 'NFS-e regular'];
+
+        return $finNFSe[$cFinNFSe] ?? ($cFinNFSe !== '' ? "finNFSe $cFinNFSe" : '-');
+    }
+
+    private function ambienteGerador($cAmbGer): string {
+        // NFSe/infNFSe/ambGer — Ambiente Gerador da NFS-e (padrão ABRASF/Sistema Nacional NFS-e)
+        $ambGer = ['1' => 'Sistema do Contribuinte', '2' => 'Sistema Nacional'];
+
+        return $ambGer[$cAmbGer] ?? ($cAmbGer !== '' ? "ambGer $cAmbGer" : '-');
+    }
+
+    private function tipoAmbiente($cTpAmb): string {
+        // NFSe/infNFSe/DPS/infDPS/tpAmb
+        $tpAmb = ['1' => 'Produção', '2' => 'Homologação'];
+
+        return $tpAmb[$cTpAmb] ?? ($cTpAmb !== '' ? "tpAmb $cTpAmb" : '-');
+    }
+
+    private function paisIso($cPais): string {
+        // Tabela de Países (Receita Federal) — só o código do Brasil está confirmado
+        $paises = ['1058' => 'BR'];
+
+        return $paises[$cPais] ?? ($cPais !== '' ? $cPais : '-');
+    }
+
+    private function tipoBeneficioMunicipal($cTpBM): string {
+        // NFSe/infNFSe/valores/tpBM — leiaute prevê 4 opções (não confirmadas); mostra o código bruto
+        return $cTpBM !== '' ? $cTpBM : '-';
+    }
+
     private function optanteSimplesNacional($cOpSimpNac): string {
         // NFSe/infNFSe/DPS/infDPS/prest/regTrib/opSimpNac		
         // Situação perante Simples Nacional:
