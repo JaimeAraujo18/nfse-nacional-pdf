@@ -8,6 +8,7 @@ class NfsePdfGenerator {
     private $pdf;
     private $data;
     private $margin = 5;
+    private $gap = 1; // espaçamento (mm) entre seções/linhas divisórias; reduzido no modo compacto
     private $font = 'helvetica';
     private $cancelada = false;
     private $substituida = false;
@@ -32,6 +33,16 @@ class NfsePdfGenerator {
         $this->pdf->SetMargins($this->margin, $this->margin, $this->margin);
         $this->pdf->SetAutoPageBreak(true, $this->margin);
         $this->pdf->SetFont($this->font, '', 7);
+    }
+
+    /**
+     * Modo compacto: reduz os espaçamentos entre seções para sobrar espaço no rodapé
+     * (ex.: canhoto de Campo Bom).
+     */
+    public function setCompact(bool $compact = true) {
+        $this->gap = $compact ? 0.5 : 1;
+
+        return $this;
     }
 
     public function setTitle(string $title) {
@@ -458,9 +469,16 @@ class NfsePdfGenerator {
         $this->addHorizontalLine();
         $this->addTomador();
         $this->addHorizontalLine();
-        $this->addDestinatario();
-        $this->addHorizontalLine();
-        $this->addIntermediario();
+        if (empty($this->data['destinatario']['existe'])) {
+            // sem destinatário nem intermediário: uma única linha
+            $this->pdf->SetFont($this->font, 'B', 7);
+            $this->pdf->Cell(0, 0, 'DESTINATÁRIO DA OPERAÇÃO E INTERMEDIÁRIO DO SERVIÇO NÃO IDENTIFICADOS NA NFS-e', 0, 1, 'C');
+            $this->pdf->Ln($this->gap);
+        } else {
+            $this->addDestinatario();
+            $this->addHorizontalLine();
+            $this->addIntermediario();
+        }
         $this->addHorizontalLine();
         $this->addServico();
         $this->addHorizontalLine();
@@ -529,7 +547,7 @@ class NfsePdfGenerator {
         // Espessura de 0,5pt (NT-008 2.2.3) em mm: 0,5pt = 0,1764mm
         $this->pdf->SetLineWidth(0.1764);
         $this->pdf->Line($this->margin, $y, $rightEdge, $y);
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addHeader() {
@@ -594,7 +612,7 @@ class NfsePdfGenerator {
 
         // Move Y position down for next content
         $this->pdf->SetY($startY + 12);
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addDadosNfse() {
@@ -713,7 +731,7 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col3X, $row6Y);
         $this->pdf->Cell($col3W, 4, $this->finalidadeNFSe($this->data['ibsCbs']['finNFSe']), 0, 1, 'L');
 
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addEmitente() {
@@ -815,7 +833,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col1W, 4, $this->optanteSimplesNacional($emit['optanteSimplesNacional']), 0, 0, 'L');
         $this->pdf->SetXY($col3X, $this->pdf->GetY());
         $this->pdf->MultiCell($col3W + $col4W, 4, $this->regimeApuracaoTributariaSN($emit['regimeApuracaoTributariaSN']), 0, 'L');
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addTomador() {
@@ -833,7 +851,7 @@ class NfsePdfGenerator {
         if (empty($toma['existe'])) {
             $this->pdf->SetFont($this->font, 'B', 7);
             $this->pdf->Cell(0, 0, 'TOMADOR/ADQUIRENTE DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e', 0, 1, 'C');
-            $this->pdf->Ln(1);
+            $this->pdf->Ln($this->gap);
 
             return;
         }
@@ -911,7 +929,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, $toma['ibgeMunicipio'] . ' / ' . $toma['cep'], 0, 1, 'L');
 
         $this->pdf->setY($row4Y); // após o final do endereco
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addDestinatario() {
@@ -930,7 +948,7 @@ class NfsePdfGenerator {
         if (empty($dest['existe'])) {
             $this->pdf->SetFont($this->font, 'B', 7);
             $this->pdf->Cell(0, 0, 'DESTINATÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e', 0, 1, 'C');
-            $this->pdf->Ln(1);
+            $this->pdf->Ln($this->gap);
 
             return;
         }
@@ -938,7 +956,7 @@ class NfsePdfGenerator {
         if (!empty($toma['doc']) && $dest['doc'] === $toma['doc']) {
             $this->pdf->SetFont($this->font, 'B', 7);
             $this->pdf->Cell(0, 0, 'O DESTINATÁRIO É O PRÓPRIO TOMADOR/ADQUIRENTE DA OPERAÇÃO', 0, 1, 'C');
-            $this->pdf->Ln(1);
+            $this->pdf->Ln($this->gap);
 
             return;
         }
@@ -1006,14 +1024,14 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col4W, 4, $dest['ibgeMunicipio'] . ' / ' . $dest['cep'], 0, 1, 'L');
 
         $this->pdf->setY($row4Y); // após o final do endereco
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addIntermediario() {
         $this->pdf->SetFont($this->font, 'B', 7);
         $this->pdf->Cell(0, 0, 'INTERMEDIÁRIO DO SERVIÇO NÃO IDENTIFICADO NA NFS-e', 0, 1, 'C');
 
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addServico() {
@@ -1104,7 +1122,7 @@ class NfsePdfGenerator {
         $row4Y = max($row4YCol1, $row4YCol2, $row3Y + 4);
 
         $this->pdf->setY($row4Y);
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addTributacaoMunicipal() {
@@ -1123,7 +1141,7 @@ class NfsePdfGenerator {
         if (empty($trib['existeTribMun'])) {
             $this->pdf->SetFont($this->font, 'B', 7);
             $this->pdf->Cell(0, 0, 'TRIBUTAÇÃO MUNICIPAL (ISSQN) - OPERAÇÃO NÃO SUJEITA AO ISSQN', 0, 1, 'C');
-            $this->pdf->Ln(1);
+            $this->pdf->Ln($this->gap);
 
             return;
         }
@@ -1229,7 +1247,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col3W, 4, $this->tipoRetencaoISSQN($trib['tipoRetencaoISSQN']), 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row4Y + 4);
         $this->pdf->Cell($col4W, 4, $val['ISSQN'], 0, 1, 'L');
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addTributacaoFederal() {
@@ -1294,7 +1312,7 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col3W, 4, $this->retencaoPisCofins($trib['tipoRetencaoPisCofins']), 0, 0, 'L');
         $this->pdf->SetXY($col4X, $row6Y + 4);
         $this->pdf->Cell($col4W, 4, $val['totalTributosFederais'], 0, 1, 'L');
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addTributacaoIbsCbs() {
@@ -1405,14 +1423,14 @@ class NfsePdfGenerator {
         $this->pdf->Cell($col2W, 4, $ibsCbs['aliqEfetCbs'], 0, 0, 'L');
         $this->pdf->SetXY($col3X, $row4Y + 4);
         $this->pdf->Cell($col3W, 4, $ibsCbs['valorTotalCbs'], 0, 1, 'L');
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addValores() {
-        $col1X = $this->margin;
-        $col2X = 47;
-        $col3X = 97;
-        $col4X = 147;
+        $col1X = $this->margin; 
+        $col2X = 47; 
+        $col3X = 97; 
+        $col4X = 147; 
         $col1W = 45;
         $col2W = 50;
         $col3W = 50;
@@ -1467,7 +1485,7 @@ class NfsePdfGenerator {
         $this->pdf->SetXY($col4X, $row2Y + 4);
         $this->pdf->Cell($col4W, 4, $ibsCbs['liquidoComIbsCbs'], 0, 1, 'L');
 
-        $this->pdf->Ln(1);
+        $this->pdf->Ln($this->gap);
     }
 
     private function addInformacoesComplementares() {
